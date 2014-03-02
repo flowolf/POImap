@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GVB Map</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="http://code.jquery.com/jquery-latest.min.js"></script>
+  <script src="http://cdn.leafletjs.com/leaflet-0.4.4/leaflet.js"></script>
+  <script src="map_gvb.js"></script>
+  <script>
+    var map;
+    $(function () {
+      map = initMap();
+//http://www.overpass-api.de/api/interpreter?data=[out:json];(relation[route=tram](47.0165460016303,15.384292602539062,47.110677290057126,15.513725280761717);relation[route=bus](47.0165460016303,15.384292602539062,47.110677290057126,15.513725280761717);node(r)->.x;way(r);node(w););out body;
+      $.getJSON('http://www.overpass-api.de/api/interpreter?data=[out:json];(relation(47.0165460016303,15.384292602539062,47.110677290057126,15.513725280761717)[route=tram][ref!~NL];node(r)->.x;way(r);node(w););out body;', function (d) {
+        var featureCollections = {};
+        parseOverpassJSON(d, null, null, function (p) {
+          var fc = featureCollections[p.tags.ref] || {type: 'FeatureCollection', features: []};
+          featureCollections[p.tags.ref] = fc;
+          p.members.map(function (mem) {
+            if (!mem.obj) return;
+            var n = '<img src="http://www.holding-graz.at/fileadmin/Linien/linien/linie_'
+                + p.tags.ref.toLowerCase() + '.gif">'
+                + (mem.obj.tags && mem.obj.tags.name ? '&nbsp;' + mem.obj.tags.name : '');
+            fc.features.push({
+              type: 'Feature',
+              geometry: mem.obj.geometry,
+              properties: {name: n, style: {color: p.tags.color || '#000000'}},
+            });
+          });
+        });
+        $.each(featureCollections, function (name, data) {
+          addGeoJSON(name, data);
+        });
+      });
+    });
+
+    function addGeoJSON(name, data) {
+      var layer = L.geoJson(data, {
+        style: function (e) {
+          return e.properties.style;
+        },
+        pointToLayer: function (data, latlng) {
+          return L.circleMarker(latlng, {fillOpacity: 0.5, weight: 5}).setRadius(4);
+        },
+        onEachFeature: function (e, layer) {
+          layer.bindPopup(e.properties.name);
+        },
+      }).addTo(map);
+      map.getControl().addOverlay(layer, 'Linie ' + name);
+    }
+
+  </script>
+  <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.4.4/leaflet.css" />
+  <!--[if lte IE 8]><link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.4.4/leaflet.ie.css" /><![endif]-->
+  <style>
+    body {
+      padding: 0;
+      margin: 0;
+    }
+    html, body, #map {
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+</body>
+</html>
+
